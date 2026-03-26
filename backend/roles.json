@@ -1,0 +1,26 @@
+{
+  "nurse": {
+    "label": "Nurse",
+    "welcomeMessage": "Welcome, Nurse. Access your learning materials and AI assistant below.",
+    "color": "#0891b2",
+    "permissions": ["view_documents", "access_ai"]
+  },
+  "cardiopulmonary": {
+    "label": "Cardiopulmonary Specialist",
+    "welcomeMessage": "Welcome. Your learning materials and AI assistant are ready.",
+    "color": "#7c3aed",
+    "permissions": ["view_documents", "access_ai"]
+  },
+  "doctor": {
+    "label": "Doctor",
+    "welcomeMessage": "Welcome, Doctor. Access your learning materials and AI assistant below.",
+    "color": "#059669",
+    "permissions": ["view_documents", "access_ai"]
+  },
+  "admin": {
+    "label": "Administrator",
+    "welcomeMessage": "Welcome, Administrator. You have full system access.",
+    "color": "#dc2626",
+    "permissions": ["view_documents", "access_ai", "manage_users", "upload_documents", "view_audit_logs"]
+  }
+}

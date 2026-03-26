@@ -1,0 +1,19 @@
+{
+  "name": "healthcare-portal",
+  "version": "1.0.0",
+  "scripts": {
+    "build": "cd frontend && npm install && npm run build",
+    "start": "cd backend && npm install --omit=dev && node server.js",
+    "heroku-postbuild": "npm run build",
+    "dev:backend": "cd backend && npm run dev",
+    "dev:frontend": "cd frontend && npm run dev",
+    "dev:voice": "cd voice-server && python3 -m uvicorn main:app --host 0.0.0.0 --port 8001 --reload",
+    "dev": "npx concurrently \"npm run dev:backend\" \"npm run dev:frontend\" \"npm run dev:voice\""
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.0"
+  },
+  "engines": {
+    "node": "24.x"
+  }
+}
