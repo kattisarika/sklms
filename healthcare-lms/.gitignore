@@ -5,20 +5,15 @@
 
 # Dependencies
 node_modules/
-**/node_modules/
+backend/node_modules/
+frontend/node_modules/
 
 # Build output
-**/dist/
-**/build/
-**/.vite/
+frontend/dist/
+frontend/build/
 
 # Temp uploads
-**/uploads/
-
-# Python
-__pycache__/
-*.pyc
-**/__pycache__/
+backend/uploads/
 
 # Logs
 *.log

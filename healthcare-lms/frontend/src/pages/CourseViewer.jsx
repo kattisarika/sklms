@@ -1,6 +1,8 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import api from '../api/axios';
+import PdfViewer, { extractPageText } from '../components/PdfViewer';
+import AskDoubtPanel from '../components/AskDoubtPanel';
 
 export default function CourseViewer() {
   const { assignmentId } = useParams();
@@ -10,12 +12,21 @@ export default function CourseViewer() {
   const [ackLoading, setAckLoading] = useState(false);
   const [ackError, setAckError] = useState('');
   const [error, setError] = useState('');
+  const [doubtPanelOpen, setDoubtPanelOpen] = useState(false);
+
+  const canvasRef = useRef(null);
+  const pageContainerRef = useRef(null);
+  const currentPageRef = useRef(1);
+
+  // Use ref for current page to avoid re-rendering PdfViewer
+  const handlePageChange = useCallback((page) => {
+    currentPageRef.current = page;
+  }, []);
 
   useEffect(() => {
     api.get(`/api/my-courses/${assignmentId}`)
       .then(res => {
         setCourse(res.data);
-        // Record open — moves course to Incomplete section
         api.post(`/api/my-courses/${assignmentId}/open`).catch(() => {});
       })
       .catch(err => setError(err.response?.data?.error || 'Course not found'))
@@ -35,6 +46,20 @@ export default function CourseViewer() {
     }
   }
 
+  const getPageContext = useCallback(() => {
+    let imageBase64 = null;
+    if (canvasRef.current) {
+      try {
+        const raw = canvasRef.current.toDataURL('image/jpeg', 0.7);
+        imageBase64 = raw.split(',')[1];
+      } catch (e) {
+        console.warn('Could not capture page screenshot:', e);
+      }
+    }
+    const pageText = extractPageText(pageContainerRef);
+    return { imageBase64, pageText, pageNumber: currentPageRef.current };
+  }, []);
+
   if (loading) return <div style={styles.center}>Loading course...</div>;
   if (error) return (
     <div style={styles.center}>
@@ -43,8 +68,8 @@ export default function CourseViewer() {
     </div>
   );
 
-  // entry_point is now a full R2 public URL
   const contentUrl = course.entry_point;
+  const isPdf = course.type === 'pdf';
 
   return (
     <div style={styles.page}>
@@ -52,8 +77,8 @@ export default function CourseViewer() {
       <div style={styles.topBar}>
         <button onClick={() => navigate('/my-courses')} style={styles.backBtn}>← My Courses</button>
         <div style={styles.courseInfo}>
-          <span style={{ ...styles.typeBadge, background: course.type === 'pdf' ? '#dbeafe' : '#ede9fe', color: course.type === 'pdf' ? '#1d4ed8' : '#6d28d9' }}>
-            {course.type === 'pdf' ? '📄 PDF' : '📦 SCORM'}
+          <span style={{ ...styles.typeBadge, background: isPdf ? '#dbeafe' : '#ede9fe', color: isPdf ? '#1d4ed8' : '#6d28d9' }}>
+            {isPdf ? '📄 PDF' : '📦 SCORM'}
           </span>
           <h2 style={styles.courseTitle}>{course.title}</h2>
         </div>
@@ -62,14 +87,40 @@ export default function CourseViewer() {
         )}
       </div>
 
-      {/* Content frame */}
-      <div style={styles.frameWrapper}>
-        <iframe
-          src={contentUrl}
-          title={course.title}
-          style={styles.frame}
-          allowFullScreen
-        />
+      {/* Content area: PDF viewer + optional doubt panel side by side */}
+      <div style={styles.contentArea}>
+        <div style={{ flex: 1, overflow: 'hidden', display: 'flex', flexDirection: 'column' }}>
+          {isPdf ? (
+            <PdfViewer
+              url={contentUrl}
+              onPageChange={handlePageChange}
+              canvasRef={canvasRef}
+              pageContainerRef={pageContainerRef}
+              toolbarExtra={
+                !doubtPanelOpen && (
+                  <button onClick={() => setDoubtPanelOpen(true)} style={styles.askDoubtBtn}>
+                    💬 Ask Doubt
+                  </button>
+                )
+              }
+            />
+          ) : (
+            <iframe
+              src={contentUrl}
+              title={course.title}
+              style={styles.frame}
+              allowFullScreen
+            />
+          )}
+        </div>
+
+        {doubtPanelOpen && isPdf && (
+          <AskDoubtPanel
+            courseTitle={course.title}
+            onClose={() => setDoubtPanelOpen(false)}
+            getPageContext={getPageContext}
+          />
+        )}
       </div>
 
       {/* Acknowledge bar */}
@@ -119,8 +170,19 @@ const styles = {
   typeBadge: { padding: '0.2rem 0.65rem', borderRadius: '999px', fontSize: '0.75rem', fontWeight: '600', whiteSpace: 'nowrap' },
   courseTitle: { color: '#1e293b', fontSize: '1rem', fontWeight: '700', margin: 0 },
   completedBadge: { color: '#16a34a', fontWeight: '700', fontSize: '0.875rem', whiteSpace: 'nowrap' },
-  frameWrapper: { flex: 1, overflow: 'hidden', background: '#f1f5f9' },
+  contentArea: { flex: 1, display: 'flex', flexDirection: 'row', overflow: 'hidden', background: '#f1f5f9' },
   frame: { width: '100%', height: '100%', border: 'none', display: 'block' },
+  askDoubtBtn: {
+    padding: '0.4rem 1rem',
+    background: 'linear-gradient(135deg, #1e40af, #7c3aed)',
+    color: 'white',
+    border: 'none',
+    borderRadius: '8px',
+    fontWeight: 700,
+    fontSize: '0.8rem',
+    cursor: 'pointer',
+    whiteSpace: 'nowrap',
+  },
   ackBar: {
     flexShrink: 0, padding: '1rem 1.5rem',
     borderTop: '1px solid #e2e8f0',

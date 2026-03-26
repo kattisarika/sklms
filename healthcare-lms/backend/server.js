@@ -35,6 +35,7 @@ app.use('/api/materials', require('./routes/materials'));
 app.use('/api/assignments', require('./routes/assignments'));
 app.use('/api/my-courses', require('./routes/learner'));
 app.use('/api/quizzes', require('./routes/quizzes'));
+app.use('/api/ai', require('./routes/ai'));
 
 // Health check
 app.get('/health', (req, res) => res.json({ status: 'ok' }));
