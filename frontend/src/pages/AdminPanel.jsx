@@ -548,44 +548,6 @@ export default function AdminPanel() {
                 </form>
               </div>
 
-              {/* Uploaded courses list */}
-              <div style={styles.tableWrapper}>
-                {materials.length === 0
-                  ? <p style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No courses uploaded yet.</p>
-                  : (
-                    <table style={styles.table}>
-                      <thead>
-                        <tr>
-                          <th style={styles.th}>Course Title</th>
-                          <th style={styles.th}>Type</th>
-                          <th style={styles.th}>Size</th>
-                          <th style={styles.th}>Uploaded By</th>
-                          <th style={styles.th}>Date</th>
-                          <th style={styles.th}>Actions</th>
-                        </tr>
-                      </thead>
-                      <tbody>
-                        {materials.map(m => (
-                          <tr key={m.id}>
-                            <td style={styles.td}>{m.title}</td>
-                            <td style={styles.td}>
-                              <span style={{ ...styles.statusBadge, background: m.type === 'pdf' ? '#dbeafe' : '#ede9fe', color: m.type === 'pdf' ? '#1d4ed8' : '#6d28d9' }}>
-                                {m.type === 'pdf' ? '📄 PDF' : '📦 SCORM'}
-                              </span>
-                            </td>
-                            <td style={styles.td}>{formatSize(m.file_size)}</td>
-                            <td style={styles.td}>{m.uploaded_by}</td>
-                            <td style={styles.td}>{new Date(m.created_at).toLocaleString()}</td>
-                            <td style={styles.td}>
-                              <a href={m.entry_point} target="_blank" rel="noreferrer" style={{ ...styles.actionBtn, textDecoration: 'none' }}>View</a>
-                              <button onClick={() => deleteMaterial(m.id, m.title)} style={{ ...styles.actionBtn, color: '#dc2626' }}>Delete</button>
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  )}
-              </div>
             </>
           )}
 
