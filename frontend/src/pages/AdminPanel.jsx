@@ -468,7 +468,6 @@ export default function AdminPanel() {
                                 >
                                   + Add
                                 </button>
-                                <a href={m.entry_point} target="_blank" rel="noreferrer" style={{ ...styles.actionBtn, textDecoration: 'none' }}>View</a>
                                 <button onClick={() => deleteMaterial(m.id, m.title)} style={{ ...styles.actionBtn, color: '#dc2626' }}>Delete</button>
                               </td>
                             </tr>
