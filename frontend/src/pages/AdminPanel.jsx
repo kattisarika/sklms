@@ -410,16 +410,68 @@ export default function AdminPanel() {
         <>
           {/* Sub-tabs */}
           <div style={styles.subTabs}>
-            {['Upload Course', 'Launch Course', 'Launch Multiple Courses', 'Create Quiz'].map(st => (
+            {['Courses', 'Upload Course', 'Launch Course', 'Launch Multiple Courses', 'Create Quiz'].map(st => (
               <button
                 key={st}
                 onClick={() => setCourseSubTab(st)}
                 style={{ ...styles.subTab, ...(courseSubTab === st ? styles.activeSubTab : {}) }}
               >
-                {st === 'Upload Course' ? '📤 Upload Course' : st === 'Launch Course' ? '🚀 Launch Course' : st === 'Launch Multiple Courses' ? '🚀📚 Launch Multiple' : '📝 Create Quiz'}
+                {st === 'Courses' ? '📚 Courses' : st === 'Upload Course' ? '📤 Upload Course' : st === 'Launch Course' ? '🚀 Launch Course' : st === 'Launch Multiple Courses' ? '🚀📚 Launch Multiple' : '📝 Create Quiz'}
               </button>
             ))}
           </div>
+
+          {/* ── Courses ── */}
+          {courseSubTab === 'Courses' && (
+            <div style={styles.tableWrapper}>
+              {materials.length === 0
+                ? <p style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No courses uploaded yet. Go to Upload Course tab to add one.</p>
+                : (
+                  <table style={styles.table}>
+                    <thead>
+                      <tr>
+                        <th style={styles.th}>Course Title</th>
+                        <th style={styles.th}>Type</th>
+                        <th style={styles.th}>Size</th>
+                        <th style={styles.th}>Uploaded By</th>
+                        <th style={styles.th}>Date</th>
+                        <th style={styles.th}>Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {materials.map(m => (
+                        <tr key={m.id}>
+                          <td style={styles.td}>{m.title}</td>
+                          <td style={styles.td}>
+                            <span style={{ ...styles.statusBadge, background: m.type === 'pdf' ? '#dbeafe' : m.type === 'quiz' ? '#fdf4ff' : '#ede9fe', color: m.type === 'pdf' ? '#1d4ed8' : m.type === 'quiz' ? '#7c3aed' : '#6d28d9' }}>
+                              {m.type === 'pdf' ? '📄 PDF' : m.type === 'quiz' ? '📝 Quiz' : '📦 SCORM'}
+                            </span>
+                          </td>
+                          <td style={styles.td}>{formatSize(m.file_size)}</td>
+                          <td style={styles.td}>{m.uploaded_by}</td>
+                          <td style={styles.td}>{new Date(m.created_at).toLocaleString()}</td>
+                          <td style={styles.td}>
+                            <button
+                              onClick={() => {
+                                setLaunchForm({ material_id: m.id, targetRoles: [], targetUsers: [] });
+                                setLaunchError('');
+                                setLaunchSuccess('');
+                                setCourseSubTab('Launch Course');
+                              }}
+                              style={{ ...styles.actionBtn, color: '#059669', fontWeight: '700' }}
+                            >
+                              + Add
+                            </button>
+                            <a href={m.entry_point} target="_blank" rel="noreferrer" style={{ ...styles.actionBtn, textDecoration: 'none' }}>View</a>
+                            <button onClick={() => deleteMaterial(m.id, m.title)} style={{ ...styles.actionBtn, color: '#dc2626' }}>Delete</button>
+                          </td>
+                        </tr>
+                      ))}
+                    </tbody>
+                  </table>
+                )}
+            </div>
+          )}
 
           {/* ── Upload Course ── */}
           {courseSubTab === 'Upload Course' && (
