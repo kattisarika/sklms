@@ -1,15 +1,16 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import api from '../api/axios';
 import { useAuth } from '../context/AuthContext';
 
-const TABS = ['New Content', 'Incomplete', 'History', 'Quiz'];
+const TABS = ['New Content', 'Incomplete', 'History', 'Quiz', 'Ask a Question'];
 
 const tabIcons = {
   'New Content': '🆕',
   'Incomplete': '⏳',
   'History': '✅',
   'Quiz': '📝',
+  'Ask a Question': '💬',
 };
 
 export default function MyCourses() {
@@ -69,10 +70,11 @@ export default function MyCourses() {
 
       {/* Content */}
       <div style={styles.content}>
-        {tab === 'New Content' && <CourseList items={newContent} tab="new" navigate={navigate} />}
-        {tab === 'Incomplete'  && <CourseList items={incomplete} tab="incomplete" navigate={navigate} />}
-        {tab === 'History'     && <CourseList items={history} tab="history" navigate={navigate} />}
-        {tab === 'Quiz'        && <QuizList items={quizzes} navigate={navigate} />}
+        {tab === 'New Content'     && <CourseList items={newContent} tab="new" navigate={navigate} />}
+        {tab === 'Incomplete'      && <CourseList items={incomplete} tab="incomplete" navigate={navigate} />}
+        {tab === 'History'         && <CourseList items={history} tab="history" navigate={navigate} />}
+        {tab === 'Quiz'            && <QuizList items={quizzes} navigate={navigate} />}
+        {tab === 'Ask a Question'  && <AskQuestion completedCourses={history} />}
       </div>
     </div>
   );
@@ -181,6 +183,117 @@ function QuizList({ items, navigate }) {
     </div>
   );
 }
+
+function AskQuestion({ completedCourses }) {
+  const [question, setQuestion] = useState('');
+  const [chat, setChat] = useState([]);
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+  const bottomRef = useRef(null);
+
+  useEffect(() => { bottomRef.current?.scrollIntoView({ behavior: 'smooth' }); }, [chat]);
+
+  const pdfCourses = completedCourses.filter(c => c.type === 'pdf');
+
+  async function handleSubmit(e) {
+    e.preventDefault();
+    if (!question.trim()) return;
+    const q = question.trim();
+    setQuestion('');
+    setError('');
+    setChat(prev => [...prev, { role: 'user', text: q }]);
+    setLoading(true);
+    try {
+      const history = chat.map(m => ({ role: m.role, text: m.text }));
+      const res = await api.post('/api/ai/ask-history', { question: q, history });
+      setChat(prev => [...prev, { role: 'ai', text: res.data.answer }]);
+    } catch (err) {
+      setError(err.response?.data?.error || 'Failed to get answer. Try again.');
+    } finally {
+      setLoading(false);
+    }
+  }
+
+  return (
+    <div style={aq.wrapper}>
+      {/* Context info */}
+      <div style={aq.contextBar}>
+        <span style={aq.contextLabel}>📚 Answering based on your completed courses:</span>
+        {pdfCourses.length === 0
+          ? <span style={aq.noContext}>No completed PDF courses yet — complete a course first to ask questions about it.</span>
+          : pdfCourses.map(c => (
+            <span key={c.id} style={aq.courseChip}>{c.title}</span>
+          ))}
+      </div>
+
+      {/* Chat messages */}
+      <div style={aq.chatArea}>
+        {chat.length === 0 && (
+          <div style={aq.emptyState}>
+            <div style={{ fontSize: '2.5rem', marginBottom: '0.75rem' }}>💬</div>
+            <p style={{ color: '#64748b', margin: 0 }}>Ask any question about your completed courses.</p>
+            <p style={{ color: '#94a3b8', fontSize: '0.85rem', marginTop: '0.4rem' }}>e.g. "What are the steps for CPR?" or "Explain hand hygiene protocols"</p>
+          </div>
+        )}
+        {chat.map((msg, i) => (
+          <div key={i} style={msg.role === 'user' ? aq.rowRight : aq.rowLeft}>
+            <div style={msg.role === 'user' ? aq.bubbleUser : aq.bubbleAi}>
+              <div style={aq.bubbleLabel}>{msg.role === 'user' ? 'You' : 'AI Tutor'}</div>
+              <div style={aq.bubbleText}>{msg.text}</div>
+            </div>
+          </div>
+        ))}
+        {loading && (
+          <div style={aq.rowLeft}>
+            <div style={aq.bubbleAi}>
+              <div style={aq.bubbleLabel}>AI Tutor</div>
+              <div style={{ ...aq.bubbleText, color: '#94a3b8' }}>Thinking...</div>
+            </div>
+          </div>
+        )}
+        <div ref={bottomRef} />
+      </div>
+
+      {/* Input */}
+      <form onSubmit={handleSubmit} style={aq.inputRow}>
+        {error && <p style={aq.errorMsg}>{error}</p>}
+        <div style={aq.inputWrap}>
+          <input
+            value={question}
+            onChange={e => setQuestion(e.target.value)}
+            placeholder="Type your question and press Enter..."
+            style={aq.input}
+            disabled={loading}
+          />
+          <button type="submit" disabled={loading || !question.trim()} style={aq.sendBtn}>
+            {loading ? '...' : 'Ask →'}
+          </button>
+        </div>
+      </form>
+    </div>
+  );
+}
+
+const aq = {
+  wrapper: { display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', overflow: 'hidden', height: '70vh' },
+  contextBar: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', flexShrink: 0 },
+  contextLabel: { color: '#374151', fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap' },
+  noContext: { color: '#94a3b8', fontSize: '0.82rem' },
+  courseChip: { padding: '0.2rem 0.65rem', background: '#dbeafe', color: '#1d4ed8', borderRadius: '999px', fontSize: '0.78rem', fontWeight: '600' },
+  chatArea: { flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: '#f8fafc' },
+  emptyState: { margin: 'auto', textAlign: 'center', padding: '2rem' },
+  rowRight: { display: 'flex', justifyContent: 'flex-end' },
+  rowLeft: { display: 'flex', justifyContent: 'flex-start' },
+  bubbleUser: { maxWidth: '72%', padding: '0.75rem 1rem', background: '#1e40af', color: 'white', borderRadius: '14px 14px 4px 14px' },
+  bubbleAi: { maxWidth: '80%', padding: '0.75rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px 14px 14px 4px', whiteSpace: 'pre-wrap' },
+  bubbleLabel: { fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem', opacity: 0.7 },
+  bubbleText: { fontSize: '0.92rem', lineHeight: 1.6 },
+  inputRow: { padding: '1rem 1.25rem', borderTop: '1px solid #e2e8f0', background: 'white', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+  errorMsg: { color: '#dc2626', fontSize: '0.82rem', margin: 0 },
+  inputWrap: { display: 'flex', gap: '0.75rem' },
+  input: { flex: 1, padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', outline: 'none' },
+  sendBtn: { padding: '0.75rem 1.5rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', whiteSpace: 'nowrap' },
+};
 
 const styles = {
   page: { padding: '2rem', maxWidth: '1100px', margin: '0 auto' },

@@ -122,4 +122,65 @@ router.get('/pdf-proxy', authenticateToken, async (req, res) => {
   }
 });
 
+// POST /api/ai/ask-history — answers questions based on user's completed courses
+router.post('/ask-history', authenticateToken, async (req, res) => {
+  try {
+    const { question, history } = req.body;
+    if (!question) return res.status(400).json({ error: 'Question is required' });
+
+    const Assignment = require('../models/Assignment');
+    const Completion = require('../models/Completion');
+
+    // Get user's completed assignments
+    const completions = await Completion.find({ user_id: req.user.id });
+    const assignmentIds = completions.map(c => c.assignment_id);
+    const assignments = await Assignment.find({
+      _id: { $in: assignmentIds }, is_active: true,
+    }).populate('material_id', 'title type entry_point');
+
+    const pdfCourses = assignments
+      .filter(a => a.material_id?.type === 'pdf' && a.material_id?.entry_point)
+      .map(a => ({ title: a.material_id.title, url: a.material_id.entry_point }));
+
+    const model = genAI.getGenerativeModel({ model: 'gemini-2.0-flash' });
+    const pdfParts = [];
+    const loadedTitles = [];
+
+    for (const course of pdfCourses) {
+      try {
+        const { base64, mimeType } = await fetchPdfAsBase64(course.url);
+        pdfParts.push({ inlineData: { data: base64, mimeType } });
+        loadedTitles.push(course.title);
+      } catch (e) {
+        console.warn(`Could not load PDF "${course.title}":`, e.message);
+      }
+    }
+
+    const systemPrompt = `You are a helpful AI teaching assistant for a healthcare training platform.
+The learner has completed these courses: ${loadedTitles.length > 0 ? loadedTitles.join(', ') : 'none yet'}.
+${pdfParts.length > 0 ? 'The course PDFs are attached. Use them as your primary reference to answer the question.' : 'Answer based on general healthcare knowledge.'}
+Be clear, concise, and grounded in the course material.`;
+
+    const contents = [];
+    if (history && history.length > 0) {
+      for (const msg of history) {
+        contents.push({ role: msg.role === 'user' ? 'user' : 'model', parts: [{ text: msg.text }] });
+      }
+    }
+
+    const userParts = [];
+    if (pdfParts.length > 0 && (!history || history.length === 0)) {
+      userParts.push(...pdfParts);
+    }
+    userParts.push({ text: `${systemPrompt}\n\nQuestion: ${question}` });
+    contents.push({ role: 'user', parts: userParts });
+
+    const result = await model.generateContent({ contents });
+    res.json({ answer: result.response.text(), courses: loadedTitles });
+  } catch (err) {
+    console.error('AI ask-history error:', err);
+    res.status(500).json({ error: 'Failed to get AI response' });
+  }
+});
+
 module.exports = router;
