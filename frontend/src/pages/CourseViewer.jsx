@@ -33,12 +33,13 @@ export default function CourseViewer() {
       .finally(() => setLoading(false));
   }, [assignmentId]);
 
-  async function handleAcknowledge() {
+  async function handleAcknowledge(andExit = false) {
     setAckError('');
     setAckLoading(true);
     try {
       const res = await api.post(`/api/my-courses/${assignmentId}/acknowledge`);
       setCourse(prev => ({ ...prev, completed: true, acknowledged_at: res.data.acknowledged_at }));
+      if (andExit) navigate('/my-courses');
     } catch (err) {
       setAckError(err.response?.data?.error || 'Failed to save acknowledgement');
     } finally {
@@ -123,19 +124,22 @@ export default function CourseViewer() {
         )}
       </div>
 
-      {/* Acknowledge bar */}
+      {/* Acknowledge / Exit bar */}
       <div style={{ ...styles.ackBar, background: course.completed ? '#f0fdf4' : '#1e293b' }}>
         {course.completed ? (
           <div style={styles.ackDone}>
             <span style={styles.ackCheck}>✅</span>
-            <div>
-              <p style={styles.ackDoneTitle}>You have acknowledged this course</p>
+            <div style={{ flex: 1 }}>
+              <p style={styles.ackDoneTitle}>You have completed this course</p>
               <p style={styles.ackDoneDate}>
                 Completed on {new Date(course.acknowledged_at).toLocaleString()}
               </p>
             </div>
+            <button onClick={() => navigate('/my-courses')} style={styles.exitBtn}>
+              ← Exit
+            </button>
           </div>
-        ) : (
+        ) : isPdf ? (
           <div style={styles.ackPending}>
             <p style={styles.ackInstruction}>
               Please review the entire course above, then click the button to confirm you have read and understood the material.
@@ -143,11 +147,28 @@ export default function CourseViewer() {
             <div style={styles.ackActions}>
               {ackError && <p style={styles.ackError}>{ackError}</p>}
               <button
-                onClick={handleAcknowledge}
+                onClick={() => handleAcknowledge(false)}
                 disabled={ackLoading}
                 style={styles.ackBtn}
               >
                 {ackLoading ? 'Saving...' : '✅ I Acknowledge I Have Reviewed This Course'}
+              </button>
+            </div>
+          </div>
+        ) : (
+          /* SCORM: Exit & Complete button */
+          <div style={styles.ackPending}>
+            <p style={styles.ackInstruction}>
+              When you have finished reviewing the course, click Exit to mark it as complete.
+            </p>
+            <div style={styles.ackActions}>
+              {ackError && <p style={styles.ackError}>{ackError}</p>}
+              <button
+                onClick={() => handleAcknowledge(true)}
+                disabled={ackLoading}
+                style={styles.exitCompleteBtn}
+              >
+                {ackLoading ? 'Saving...' : '✅ Exit & Complete Course'}
               </button>
             </div>
           </div>
@@ -199,5 +220,15 @@ const styles = {
     padding: '0.75rem 1.75rem', background: '#16a34a', color: 'white',
     border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer',
     fontSize: '0.9rem', whiteSpace: 'nowrap',
+  },
+  exitCompleteBtn: {
+    padding: '0.75rem 1.75rem', background: '#7c3aed', color: 'white',
+    border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer',
+    fontSize: '0.9rem', whiteSpace: 'nowrap',
+  },
+  exitBtn: {
+    padding: '0.5rem 1.25rem', background: 'white', color: '#15803d',
+    border: '2px solid #16a34a', borderRadius: '8px', fontWeight: '700',
+    cursor: 'pointer', fontSize: '0.85rem', whiteSpace: 'nowrap',
   },
 };
