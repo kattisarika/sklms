@@ -80,7 +80,11 @@ export default function MyCourses() {
   );
 }
 
+const HISTORY_PER_PAGE = 10;
+
 function CourseList({ items, tab, navigate }) {
+  const [page, setPage] = useState(1);
+
   const emptyMessages = {
     new: { icon: '🎉', text: 'You\'re all caught up! No new courses assigned.' },
     incomplete: { icon: '✅', text: 'No courses in progress — you\'re on track!' },
@@ -97,36 +101,56 @@ function CourseList({ items, tab, navigate }) {
     );
   }
 
+  const paginated = tab === 'history' ? items.slice((page - 1) * HISTORY_PER_PAGE, page * HISTORY_PER_PAGE) : items;
+  const totalPages = tab === 'history' ? Math.ceil(items.length / HISTORY_PER_PAGE) : 1;
+  const accentColor = tab === 'history' ? '#16a34a' : tab === 'incomplete' ? '#f59e0b' : '#1e40af';
+
   return (
-    <div style={styles.grid}>
-      {items.map(course => (
-        <div key={course.id} style={{ ...styles.card, borderLeft: `4px solid ${tab === 'history' ? '#16a34a' : tab === 'incomplete' ? '#f59e0b' : '#1e40af'}` }}>
-          <div style={styles.cardTop}>
-            <span style={{ ...styles.typeBadge, background: course.type === 'pdf' ? '#dbeafe' : '#ede9fe', color: course.type === 'pdf' ? '#1d4ed8' : '#6d28d9' }}>
-              {course.type === 'pdf' ? '📄 PDF' : '📦 SCORM'}
-            </span>
-            {tab === 'history' && <span style={styles.completedTag}>✅ Done</span>}
-            {tab === 'incomplete' && <span style={styles.inProgressTag}>⏳ In Progress</span>}
+    <div>
+      <div style={styles.list}>
+        {paginated.map(course => (
+          <div key={course.id} style={{ ...styles.card, borderLeft: `4px solid ${accentColor}` }}>
+            <div style={styles.cardLeft}>
+              <div style={styles.cardTop}>
+                <span style={{ ...styles.typeBadge, background: course.type === 'pdf' ? '#dbeafe' : '#ede9fe', color: course.type === 'pdf' ? '#1d4ed8' : '#6d28d9' }}>
+                  {course.type === 'pdf' ? '📄 PDF' : '📦 SCORM'}
+                </span>
+                {tab === 'history' && <span style={styles.completedTag}>✅ Done</span>}
+                {tab === 'incomplete' && <span style={styles.inProgressTag}>⏳ In Progress</span>}
+              </div>
+              <h3 style={styles.cardTitle}>{course.title}</h3>
+              <p style={styles.cardMeta}>Assigned {new Date(course.launched_at).toLocaleDateString()}</p>
+              {tab === 'incomplete' && course.first_opened_at && (
+                <p style={styles.openedDate}>Opened {new Date(course.first_opened_at).toLocaleDateString()}</p>
+              )}
+              {tab === 'history' && course.acknowledged_at && (
+                <p style={styles.doneDate}>Completed {new Date(course.acknowledged_at).toLocaleString()}</p>
+              )}
+            </div>
+            <button
+              onClick={() => navigate(`/my-courses/${course.id}`)}
+              style={{ ...styles.actionBtn, background: accentColor, alignSelf: 'center' }}
+            >
+              {tab === 'history' ? '↩ Review Again' : tab === 'incomplete' ? '▶ Continue' : '▶ Start Course'}
+            </button>
           </div>
+        ))}
+      </div>
 
-          <h3 style={styles.cardTitle}>{course.title}</h3>
-          <p style={styles.cardMeta}>Assigned {new Date(course.launched_at).toLocaleDateString()}</p>
-
-          {tab === 'incomplete' && course.first_opened_at && (
-            <p style={styles.openedDate}>Opened {new Date(course.first_opened_at).toLocaleDateString()}</p>
-          )}
-          {tab === 'history' && course.acknowledged_at && (
-            <p style={styles.doneDate}>Completed {new Date(course.acknowledged_at).toLocaleString()}</p>
-          )}
-
-          <button
-            onClick={() => navigate(`/my-courses/${course.id}`)}
-            style={{ ...styles.actionBtn, background: tab === 'history' ? '#16a34a' : tab === 'incomplete' ? '#f59e0b' : '#1e40af' }}
-          >
-            {tab === 'history' ? '↩ Review Again' : tab === 'incomplete' ? '▶ Continue' : '▶ Start Course'}
-          </button>
+      {tab === 'history' && totalPages > 1 && (
+        <div style={styles.pagination}>
+          <span style={styles.pageInfo}>Showing {(page - 1) * HISTORY_PER_PAGE + 1}–{Math.min(page * HISTORY_PER_PAGE, items.length)} of {items.length} courses</span>
+          <div style={styles.pageButtons}>
+            <button onClick={() => setPage(1)} disabled={page === 1} style={styles.pageBtn}>«</button>
+            <button onClick={() => setPage(p => p - 1)} disabled={page === 1} style={styles.pageBtn}>‹</button>
+            {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+              <button key={p} onClick={() => setPage(p)} style={{ ...styles.pageBtn, ...(p === page ? styles.pageBtnActive : {}) }}>{p}</button>
+            ))}
+            <button onClick={() => setPage(p => p + 1)} disabled={page === totalPages} style={styles.pageBtn}>›</button>
+            <button onClick={() => setPage(totalPages)} disabled={page === totalPages} style={styles.pageBtn}>»</button>
+          </div>
         </div>
-      ))}
+      )}
     </div>
   );
 }
@@ -275,50 +299,56 @@ function AskQuestion({ completedCourses }) {
 }
 
 const aq = {
-  wrapper: { display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', overflow: 'hidden', height: '70vh' },
-  contextBar: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.5rem', padding: '0.85rem 1.25rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', flexShrink: 0 },
-  contextLabel: { color: '#374151', fontWeight: '600', fontSize: '0.85rem', whiteSpace: 'nowrap' },
-  noContext: { color: '#94a3b8', fontSize: '0.82rem' },
-  courseChip: { padding: '0.2rem 0.65rem', background: '#dbeafe', color: '#1d4ed8', borderRadius: '999px', fontSize: '0.78rem', fontWeight: '600' },
-  chatArea: { flex: 1, overflowY: 'auto', padding: '1.25rem', display: 'flex', flexDirection: 'column', gap: '0.85rem', background: '#f8fafc' },
+  wrapper: { display: 'flex', flexDirection: 'column', background: 'white', borderRadius: '14px', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', overflow: 'hidden', height: '75vh' },
+  contextBar: { display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: '0.6rem', padding: '1rem 1.5rem', background: '#f8fafc', borderBottom: '1px solid #e2e8f0', flexShrink: 0 },
+  contextLabel: { color: '#374151', fontWeight: '600', fontSize: '0.95rem', whiteSpace: 'nowrap' },
+  noContext: { color: '#94a3b8', fontSize: '0.92rem' },
+  courseChip: { padding: '0.25rem 0.75rem', background: '#dbeafe', color: '#1d4ed8', borderRadius: '999px', fontSize: '0.88rem', fontWeight: '600' },
+  chatArea: { flex: 1, overflowY: 'auto', padding: '1.5rem', display: 'flex', flexDirection: 'column', gap: '1rem', background: '#f8fafc' },
   emptyState: { margin: 'auto', textAlign: 'center', padding: '2rem' },
   rowRight: { display: 'flex', justifyContent: 'flex-end' },
   rowLeft: { display: 'flex', justifyContent: 'flex-start' },
-  bubbleUser: { maxWidth: '72%', padding: '0.75rem 1rem', background: '#1e40af', color: 'white', borderRadius: '14px 14px 4px 14px' },
-  bubbleAi: { maxWidth: '80%', padding: '0.75rem 1rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px 14px 14px 4px', whiteSpace: 'pre-wrap' },
-  bubbleLabel: { fontSize: '0.65rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.3rem', opacity: 0.7 },
-  bubbleText: { fontSize: '0.92rem', lineHeight: 1.6 },
-  inputRow: { padding: '1rem 1.25rem', borderTop: '1px solid #e2e8f0', background: 'white', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' },
-  errorMsg: { color: '#dc2626', fontSize: '0.82rem', margin: 0 },
+  bubbleUser: { maxWidth: '72%', padding: '0.9rem 1.2rem', background: '#1e40af', color: 'white', borderRadius: '14px 14px 4px 14px' },
+  bubbleAi: { maxWidth: '80%', padding: '0.9rem 1.2rem', background: 'white', border: '1px solid #e2e8f0', borderRadius: '14px 14px 14px 4px', whiteSpace: 'pre-wrap' },
+  bubbleLabel: { fontSize: '0.72rem', fontWeight: '700', textTransform: 'uppercase', letterSpacing: '0.05em', marginBottom: '0.35rem', opacity: 0.7 },
+  bubbleText: { fontSize: '1rem', lineHeight: 1.7 },
+  inputRow: { padding: '1.1rem 1.5rem', borderTop: '1px solid #e2e8f0', background: 'white', flexShrink: 0, display: 'flex', flexDirection: 'column', gap: '0.4rem' },
+  errorMsg: { color: '#dc2626', fontSize: '0.9rem', margin: 0 },
   inputWrap: { display: 'flex', gap: '0.75rem' },
-  input: { flex: 1, padding: '0.75rem 1rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '0.95rem', outline: 'none' },
-  sendBtn: { padding: '0.75rem 1.5rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', whiteSpace: 'nowrap' },
+  input: { flex: 1, padding: '0.85rem 1.1rem', border: '1px solid #d1d5db', borderRadius: '8px', fontSize: '1rem', outline: 'none' },
+  sendBtn: { padding: '0.85rem 1.75rem', background: '#1e40af', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '1rem', whiteSpace: 'nowrap' },
 };
 
 const styles = {
-  page: { padding: '2rem', maxWidth: '1100px', margin: '0 auto' },
+  page: { padding: '2rem 2.5rem' },
   center: { textAlign: 'center', padding: '4rem', color: '#64748b' },
-  pageHeader: { marginBottom: '1.5rem' },
-  title: { color: '#1e293b', fontSize: '1.5rem', margin: 0 },
-  sub: { color: '#64748b', fontSize: '0.9rem', marginTop: '0.25rem' },
-  tabs: { display: 'flex', gap: '0.5rem', marginBottom: '1.5rem', flexWrap: 'wrap' },
-  tab: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.6rem 1.1rem', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', cursor: 'pointer', color: '#64748b', fontWeight: '600', fontSize: '0.875rem' },
+  pageHeader: { marginBottom: '1.75rem' },
+  title: { color: '#1e293b', fontSize: '2rem', margin: 0, fontWeight: '800' },
+  sub: { color: '#64748b', fontSize: '1.05rem', marginTop: '0.35rem' },
+  tabs: { display: 'flex', gap: '0.65rem', marginBottom: '1.75rem', flexWrap: 'wrap' },
+  tab: { display: 'flex', alignItems: 'center', gap: '0.5rem', padding: '0.7rem 1.3rem', border: '1px solid #e2e8f0', borderRadius: '8px', background: 'white', cursor: 'pointer', color: '#64748b', fontWeight: '600', fontSize: '1rem' },
   activeTab: { background: '#1e40af', color: 'white', borderColor: '#1e40af' },
-  badge: { padding: '0.1rem 0.5rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '700' },
+  badge: { padding: '0.1rem 0.55rem', borderRadius: '999px', fontSize: '0.8rem', fontWeight: '700' },
   content: {},
   empty: { textAlign: 'center', padding: '3rem', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
-  grid: { display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(290px, 1fr))', gap: '1.25rem' },
-  card: { background: 'white', borderRadius: '12px', padding: '1.25rem', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'column', gap: '0.5rem' },
-  cardTop: { display: 'flex', justifyContent: 'space-between', alignItems: 'center' },
-  typeBadge: { padding: '0.2rem 0.65rem', borderRadius: '999px', fontSize: '0.72rem', fontWeight: '600' },
-  completedTag: { color: '#16a34a', fontSize: '0.75rem', fontWeight: '700' },
-  inProgressTag: { color: '#b45309', fontSize: '0.75rem', fontWeight: '700' },
-  failedTag: { color: '#dc2626', fontSize: '0.75rem', fontWeight: '700' },
-  newTag: { color: '#1d4ed8', fontSize: '0.75rem', fontWeight: '700', background: '#eff6ff', padding: '0.1rem 0.5rem', borderRadius: '999px' },
-  cardTitle: { color: '#1e293b', fontSize: '0.95rem', fontWeight: '700', margin: 0 },
-  cardMeta: { color: '#94a3b8', fontSize: '0.78rem', margin: 0 },
-  openedDate: { color: '#b45309', fontSize: '0.78rem', margin: 0 },
-  doneDate: { color: '#16a34a', fontSize: '0.78rem', margin: 0 },
+  list: { display: 'flex', flexDirection: 'column', gap: '1rem' },
+  card: { background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch', gap: '1.5rem' },
+  cardLeft: { display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 },
+  cardTop: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' },
+  pageInfo: { color: '#64748b', fontSize: '0.9rem' },
+  pageButtons: { display: 'flex', gap: '0.35rem' },
+  pageBtn: { padding: '0.4rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', background: 'white', cursor: 'pointer', fontSize: '0.9rem', color: '#374151' },
+  pageBtnActive: { background: '#1e40af', color: 'white', borderColor: '#1e40af', fontWeight: '700' },
+  typeBadge: { padding: '0.25rem 0.75rem', borderRadius: '999px', fontSize: '0.82rem', fontWeight: '600' },
+  completedTag: { color: '#16a34a', fontSize: '0.85rem', fontWeight: '700' },
+  inProgressTag: { color: '#b45309', fontSize: '0.85rem', fontWeight: '700' },
+  failedTag: { color: '#dc2626', fontSize: '0.85rem', fontWeight: '700' },
+  newTag: { color: '#1d4ed8', fontSize: '0.85rem', fontWeight: '700', background: '#eff6ff', padding: '0.15rem 0.6rem', borderRadius: '999px' },
+  cardTitle: { color: '#1e293b', fontSize: '1.08rem', fontWeight: '700', margin: 0 },
+  cardMeta: { color: '#94a3b8', fontSize: '0.88rem', margin: 0 },
+  openedDate: { color: '#b45309', fontSize: '0.88rem', margin: 0 },
+  doneDate: { color: '#16a34a', fontSize: '0.88rem', margin: 0 },
   scoreRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderRadius: '8px', marginTop: '0.25rem' },
-  actionBtn: { marginTop: '0.5rem', padding: '0.6rem 1rem', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.85rem' },
+  actionBtn: { marginTop: '0.5rem', padding: '0.75rem 1.25rem', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem' },
 };
