@@ -71,6 +71,20 @@ export default function CourseViewer() {
 
   const contentUrl = course.entry_point;
   const isPdf = course.type === 'pdf';
+  const isVideo = course.type === 'video';
+
+  function toEmbedUrl(url) {
+    try {
+      const u = new URL(url);
+      if (u.hostname.includes('youtube.com') && u.searchParams.get('v')) {
+        return `https://www.youtube.com/embed/${u.searchParams.get('v')}`;
+      }
+      if (u.hostname === 'youtu.be') {
+        return `https://www.youtube.com/embed${u.pathname}`;
+      }
+    } catch {}
+    return url;
+  }
 
   return (
     <div style={styles.page}>
@@ -78,8 +92,8 @@ export default function CourseViewer() {
       <div style={styles.topBar}>
         <button onClick={() => navigate('/my-courses')} style={styles.backBtn}>← My Courses</button>
         <div style={styles.courseInfo}>
-          <span style={{ ...styles.typeBadge, background: isPdf ? '#dbeafe' : '#ede9fe', color: isPdf ? '#1d4ed8' : '#6d28d9' }}>
-            {isPdf ? '📄 PDF' : '📦 SCORM'}
+          <span style={{ ...styles.typeBadge, background: isPdf ? '#dbeafe' : isVideo ? '#fef9c3' : '#ede9fe', color: isPdf ? '#1d4ed8' : isVideo ? '#b45309' : '#6d28d9' }}>
+            {isPdf ? '📄 PDF' : isVideo ? '🎬 Video' : '📦 SCORM'}
           </span>
           <h2 style={styles.courseTitle}>{course.title}</h2>
         </div>
@@ -104,6 +118,14 @@ export default function CourseViewer() {
                   </button>
                 )
               }
+            />
+          ) : isVideo ? (
+            <iframe
+              src={toEmbedUrl(contentUrl)}
+              title={course.title}
+              style={styles.frame}
+              allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
+              allowFullScreen
             />
           ) : (
             <iframe
@@ -139,7 +161,7 @@ export default function CourseViewer() {
               ← Exit
             </button>
           </div>
-        ) : isPdf ? (
+        ) : isPdf && !isVideo ? (
           <div style={styles.ackPending}>
             <p style={styles.ackInstruction}>
               Please review the entire course above, then click the button to confirm you have read and understood the material.

@@ -215,8 +215,8 @@ function CourseList({ items, tab, navigate, userName }) {
           <div key={course.id} style={{ ...styles.card, borderLeft: `4px solid ${accentColor}` }}>
             <div style={styles.cardLeft}>
               <div style={styles.cardTop}>
-                <span style={{ ...styles.typeBadge, background: course.type === 'pdf' ? '#dbeafe' : '#ede9fe', color: course.type === 'pdf' ? '#1d4ed8' : '#6d28d9' }}>
-                  {course.type === 'pdf' ? '📄 PDF' : '📦 SCORM'}
+                <span style={{ ...styles.typeBadge, background: course.type === 'pdf' ? '#dbeafe' : course.type === 'video' ? '#fef9c3' : '#ede9fe', color: course.type === 'pdf' ? '#1d4ed8' : course.type === 'video' ? '#b45309' : '#6d28d9' }}>
+                  {course.type === 'pdf' ? '📄 PDF' : course.type === 'video' ? '🎬 Video' : '📦 SCORM'}
                 </span>
                 {tab === 'history' && (
                   <span style={styles.completionBadge}>🏅 Completed</span>

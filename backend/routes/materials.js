@@ -115,6 +115,30 @@ router.post('/', authenticateToken, requireRole('admin'), upload.single('file'),
   }
 });
 
+// POST /api/materials/video — save a video URL (YouTube or direct) without file upload
+router.post('/video', authenticateToken, requireRole('admin'), async (req, res) => {
+  try {
+    const { title, url } = req.body;
+    if (!title) return res.status(400).json({ error: 'Title is required' });
+    if (!url) return res.status(400).json({ error: 'Video URL is required' });
+
+    const material = await Material.create({
+      title,
+      type: 'video',
+      entry_point: url,
+      stored_path: null,
+      file_size: 0,
+      uploaded_by: req.user.email,
+    });
+
+    AuditLog.create({ user_email: req.user.email, action: 'MATERIAL_UPLOADED', details: `Added video: "${title}"`, ip_address: req.ip }).catch(() => {});
+    res.status(201).json({ message: 'Video added successfully', id: material.id });
+  } catch (err) {
+    console.error('Video add error:', err);
+    res.status(500).json({ error: 'Failed to add video' });
+  }
+});
+
 // DELETE /api/materials/:id — admin only
 router.delete('/:id', authenticateToken, requireRole('admin'), async (req, res) => {
   try {

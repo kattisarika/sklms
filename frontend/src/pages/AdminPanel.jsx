@@ -15,7 +15,7 @@ export default function AdminPanel() {
   const [courseSubTab, setCourseSubTab] = useState('Upload Course');
   const [coursePage, setCoursePage] = useState(1);
   const COURSES_PER_PAGE = 10;
-  const [matForm, setMatForm] = useState({ title: '', type: 'pdf', file: null });
+  const [matForm, setMatForm] = useState({ title: '', type: 'pdf', file: null, videoUrl: '' });
   const [matError, setMatError] = useState('');
   const [matSuccess, setMatSuccess] = useState('');
   const [matLoading, setMatLoading] = useState(false);
@@ -70,6 +70,23 @@ export default function AdminPanel() {
     e.preventDefault();
     setMatError('');
     setMatSuccess('');
+
+    if (matForm.type === 'video') {
+      if (!matForm.videoUrl.trim()) return setMatError('Please enter a video URL');
+      setMatLoading(true);
+      try {
+        await api.post('/api/materials/video', { title: matForm.title, url: matForm.videoUrl.trim() });
+        setMatSuccess('Video added successfully');
+        setMatForm({ title: '', type: 'pdf', file: null, videoUrl: '' });
+        fetchMaterials();
+      } catch (err) {
+        setMatError(err.response?.data?.error || 'Failed to add video');
+      } finally {
+        setMatLoading(false);
+      }
+      return;
+    }
+
     if (!matForm.file) return setMatError('Please select a file');
     const ext = matForm.file.name.split('.').pop().toLowerCase();
     if (matForm.type === 'pdf' && ext !== 'pdf') return setMatError('Please select a PDF file');
@@ -88,7 +105,7 @@ export default function AdminPanel() {
         onUploadProgress: e => setUploadProgress(Math.round((e.loaded / e.total) * 100)),
       });
       setMatSuccess('Course uploaded successfully');
-      setMatForm({ title: '', type: 'pdf', file: null });
+      setMatForm({ title: '', type: 'pdf', file: null, videoUrl: '' });
       setUploadProgress(0);
       fetchMaterials();
     } catch (err) {
@@ -449,8 +466,8 @@ export default function AdminPanel() {
                             <tr key={m.id}>
                               <td style={styles.td}>{m.title}</td>
                               <td style={styles.td}>
-                                <span style={{ ...styles.statusBadge, background: m.type === 'pdf' ? '#dbeafe' : m.type === 'quiz' ? '#fdf4ff' : '#ede9fe', color: m.type === 'pdf' ? '#1d4ed8' : m.type === 'quiz' ? '#7c3aed' : '#6d28d9' }}>
-                                  {m.type === 'pdf' ? '📄 PDF' : m.type === 'quiz' ? '📝 Quiz' : '📦 SCORM'}
+                                <span style={{ ...styles.statusBadge, background: m.type === 'pdf' ? '#dbeafe' : m.type === 'quiz' ? '#fdf4ff' : m.type === 'video' ? '#fef9c3' : '#ede9fe', color: m.type === 'pdf' ? '#1d4ed8' : m.type === 'quiz' ? '#7c3aed' : m.type === 'video' ? '#b45309' : '#6d28d9' }}>
+                                  {m.type === 'pdf' ? '📄 PDF' : m.type === 'quiz' ? '📝 Quiz' : m.type === 'video' ? '🎬 Video' : '📦 SCORM'}
                                 </span>
                               </td>
                               <td style={styles.td}>{formatSize(m.file_size)}</td>
@@ -521,9 +538,24 @@ export default function AdminPanel() {
                       >
                         <option value="pdf">PDF Document</option>
                         <option value="scorm">SCORM Package (ZIP)</option>
+                        <option value="video">Video (YouTube / URL)</option>
                       </select>
                     </div>
                   </div>
+                  {matForm.type === 'video' ? (
+                    <div style={styles.formGroup}>
+                      <label style={styles.label}>Video URL</label>
+                      <input
+                        type="url"
+                        value={matForm.videoUrl}
+                        onChange={e => setMatForm({ ...matForm, videoUrl: e.target.value })}
+                        required
+                        style={styles.input}
+                        placeholder="https://www.youtube.com/watch?v=... or https://..."
+                      />
+                      <p style={styles.fileHint}>Paste a YouTube link or any direct video URL (MP4, etc.)</p>
+                    </div>
+                  ) : (
                   <div style={styles.formGroup}>
                     <label style={styles.label}>{matForm.type === 'pdf' ? 'Select PDF File' : 'Select SCORM ZIP File'}</label>
                     <input
@@ -534,6 +566,7 @@ export default function AdminPanel() {
                     />
                     <p style={styles.fileHint}>{matForm.type === 'pdf' ? 'Accepted: .pdf — Max 500MB' : 'Accepted: .zip (SCORM package) — Max 500MB'}</p>
                   </div>
+                  )}
                   {matLoading && uploadProgress > 0 && (
                     <div style={styles.progressBar}>
                       <div style={{ ...styles.progressFill, width: `${uploadProgress}%` }} />
