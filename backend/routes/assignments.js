@@ -4,6 +4,7 @@ const Assignment = require('../models/Assignment');
 const Material = require('../models/Material');
 const Completion = require('../models/Completion');
 const AuditLog = require('../models/AuditLog');
+const User = require('../models/User');
 const { authenticateToken, requireRole } = require('../middleware/auth');
 
 async function logAudit(email, action, details, ip) {
@@ -61,10 +62,22 @@ router.post('/', authenticateToken, requireRole('admin'), async (req, res) => {
     const material = await Material.findById(material_id);
     if (!material) return res.status(404).json({ error: 'Course not found' });
 
+    // Expand roles → snapshot current user IDs so future new users don't inherit this assignment
+    const roles = Array.isArray(target_roles) ? target_roles : [];
+    const explicitUsers = Array.isArray(target_users) ? target_users : [];
+    let expandedUsers = [...explicitUsers];
+    if (roles.length > 0) {
+      const roleUsers = await User.find({ role: { $in: roles }, is_active: true }, '_id');
+      roleUsers.forEach(u => {
+        const uid = u._id.toString();
+        if (!expandedUsers.includes(uid)) expandedUsers.push(uid);
+      });
+    }
+
     const assignment = await Assignment.create({
       material_id,
-      target_roles: Array.isArray(target_roles) ? target_roles : [],
-      target_users: Array.isArray(target_users) ? target_users : [],
+      target_roles: roles,       // kept for display in admin panel
+      target_users: expandedUsers,
       launched_by: req.user.email,
     });
 

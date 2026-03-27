@@ -10,12 +10,9 @@ const AuditLog = require('../models/AuditLog');
 const { authenticateToken } = require('../middleware/auth');
 
 function isVisible(a, user) {
-  const roles = a.target_roles || [];
   const users = a.target_users || [];
-  if (roles.length === 0 && users.length === 0) return true;
-  if (roles.includes(user.role)) return true;
-  if (users.includes(String(user.id))) return true;
-  return false;
+  if (users.length === 0) return true; // assigned to everyone
+  return users.includes(String(user.id));
 }
 
 async function buildCourse(a, userId) {
