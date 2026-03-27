@@ -13,6 +13,8 @@ export default function AdminPanel() {
   const [materials, setMaterials] = useState([]);
   const [assignments, setAssignments] = useState([]);
   const [courseSubTab, setCourseSubTab] = useState('Upload Course');
+  const [coursePage, setCoursePage] = useState(1);
+  const COURSES_PER_PAGE = 10;
   const [matForm, setMatForm] = useState({ title: '', type: 'pdf', file: null });
   const [matError, setMatError] = useState('');
   const [matSuccess, setMatSuccess] = useState('');
@@ -422,56 +424,78 @@ export default function AdminPanel() {
           </div>
 
           {/* ── Courses ── */}
-          {courseSubTab === 'Courses' && (
-            <div style={styles.tableWrapper}>
-              {materials.length === 0
-                ? <p style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No courses uploaded yet. Go to Upload Course tab to add one.</p>
-                : (
-                  <table style={styles.table}>
-                    <thead>
-                      <tr>
-                        <th style={styles.th}>Course Title</th>
-                        <th style={styles.th}>Type</th>
-                        <th style={styles.th}>Size</th>
-                        <th style={styles.th}>Uploaded By</th>
-                        <th style={styles.th}>Date</th>
-                        <th style={styles.th}>Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {materials.map(m => (
-                        <tr key={m.id}>
-                          <td style={styles.td}>{m.title}</td>
-                          <td style={styles.td}>
-                            <span style={{ ...styles.statusBadge, background: m.type === 'pdf' ? '#dbeafe' : m.type === 'quiz' ? '#fdf4ff' : '#ede9fe', color: m.type === 'pdf' ? '#1d4ed8' : m.type === 'quiz' ? '#7c3aed' : '#6d28d9' }}>
-                              {m.type === 'pdf' ? '📄 PDF' : m.type === 'quiz' ? '📝 Quiz' : '📦 SCORM'}
-                            </span>
-                          </td>
-                          <td style={styles.td}>{formatSize(m.file_size)}</td>
-                          <td style={styles.td}>{m.uploaded_by}</td>
-                          <td style={styles.td}>{new Date(m.created_at).toLocaleString()}</td>
-                          <td style={styles.td}>
-                            <button
-                              onClick={() => {
-                                setLaunchForm({ material_id: m.id, targetRoles: [], targetUsers: [] });
-                                setLaunchError('');
-                                setLaunchSuccess('');
-                                setCourseSubTab('Launch Course');
-                              }}
-                              style={{ ...styles.actionBtn, color: '#059669', fontWeight: '700' }}
-                            >
-                              + Add
-                            </button>
-                            <a href={m.entry_point} target="_blank" rel="noreferrer" style={{ ...styles.actionBtn, textDecoration: 'none' }}>View</a>
-                            <button onClick={() => deleteMaterial(m.id, m.title)} style={{ ...styles.actionBtn, color: '#dc2626' }}>Delete</button>
-                          </td>
-                        </tr>
+          {courseSubTab === 'Courses' && (() => {
+            const totalPages = Math.ceil(materials.length / COURSES_PER_PAGE);
+            const paginated = materials.slice((coursePage - 1) * COURSES_PER_PAGE, coursePage * COURSES_PER_PAGE);
+            return (
+              <>
+                <div style={styles.tableWrapper}>
+                  {materials.length === 0
+                    ? <p style={{ textAlign: 'center', padding: '2rem', color: '#9ca3af' }}>No courses uploaded yet. Go to Upload Course tab to add one.</p>
+                    : (
+                      <table style={styles.table}>
+                        <thead>
+                          <tr>
+                            <th style={styles.th}>Course Title</th>
+                            <th style={styles.th}>Type</th>
+                            <th style={styles.th}>Size</th>
+                            <th style={styles.th}>Uploaded By</th>
+                            <th style={styles.th}>Date</th>
+                            <th style={styles.th}>Actions</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginated.map(m => (
+                            <tr key={m.id}>
+                              <td style={styles.td}>{m.title}</td>
+                              <td style={styles.td}>
+                                <span style={{ ...styles.statusBadge, background: m.type === 'pdf' ? '#dbeafe' : m.type === 'quiz' ? '#fdf4ff' : '#ede9fe', color: m.type === 'pdf' ? '#1d4ed8' : m.type === 'quiz' ? '#7c3aed' : '#6d28d9' }}>
+                                  {m.type === 'pdf' ? '📄 PDF' : m.type === 'quiz' ? '📝 Quiz' : '📦 SCORM'}
+                                </span>
+                              </td>
+                              <td style={styles.td}>{formatSize(m.file_size)}</td>
+                              <td style={styles.td}>{m.uploaded_by}</td>
+                              <td style={styles.td}>{new Date(m.created_at).toLocaleString()}</td>
+                              <td style={styles.td}>
+                                <button
+                                  onClick={() => {
+                                    setLaunchForm({ material_id: m.id, targetRoles: [], targetUsers: [] });
+                                    setLaunchError('');
+                                    setLaunchSuccess('');
+                                    setCourseSubTab('Launch Course');
+                                  }}
+                                  style={{ ...styles.actionBtn, color: '#059669', fontWeight: '700' }}
+                                >
+                                  + Add
+                                </button>
+                                <a href={m.entry_point} target="_blank" rel="noreferrer" style={{ ...styles.actionBtn, textDecoration: 'none' }}>View</a>
+                                <button onClick={() => deleteMaterial(m.id, m.title)} style={{ ...styles.actionBtn, color: '#dc2626' }}>Delete</button>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    )}
+                </div>
+                {totalPages > 1 && (
+                  <div style={styles.pagination}>
+                    <span style={styles.pageInfo}>
+                      Showing {(coursePage - 1) * COURSES_PER_PAGE + 1}–{Math.min(coursePage * COURSES_PER_PAGE, materials.length)} of {materials.length} courses
+                    </span>
+                    <div style={styles.pageButtons}>
+                      <button onClick={() => setCoursePage(1)} disabled={coursePage === 1} style={styles.pageBtn}>«</button>
+                      <button onClick={() => setCoursePage(p => p - 1)} disabled={coursePage === 1} style={styles.pageBtn}>‹</button>
+                      {Array.from({ length: totalPages }, (_, i) => i + 1).map(p => (
+                        <button key={p} onClick={() => setCoursePage(p)} style={{ ...styles.pageBtn, ...(p === coursePage ? styles.activePage : {}) }}>{p}</button>
                       ))}
-                    </tbody>
-                  </table>
+                      <button onClick={() => setCoursePage(p => p + 1)} disabled={coursePage === totalPages} style={styles.pageBtn}>›</button>
+                      <button onClick={() => setCoursePage(totalPages)} disabled={coursePage === totalPages} style={styles.pageBtn}>»</button>
+                    </div>
+                  </div>
                 )}
-            </div>
-          )}
+              </>
+            );
+          })()}
 
           {/* ── Upload Course ── */}
           {courseSubTab === 'Upload Course' && (
@@ -1099,6 +1123,11 @@ const styles = {
   addQBtn: { alignSelf: 'flex-start', padding: '0.6rem 1.25rem', background: 'white', border: '2px dashed #7c3aed', borderRadius: '8px', color: '#7c3aed', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem' },
   modalOverlay: { position: 'fixed', inset: 0, background: 'rgba(0,0,0,0.5)', display: 'flex', alignItems: 'center', justifyContent: 'center', zIndex: 9999 },
   modalBox: { background: 'white', borderRadius: '16px', padding: '2rem', maxWidth: '480px', width: '90%', boxShadow: '0 20px 60px rgba(0,0,0,0.25)', textAlign: 'center' },
+  pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '1rem 1.25rem', background: 'white', borderRadius: '0 0 12px 12px', borderTop: '1px solid #f3f4f6', marginTop: '-1px' },
+  pageInfo: { color: '#64748b', fontSize: '0.9rem' },
+  pageButtons: { display: 'flex', gap: '0.3rem', alignItems: 'center' },
+  pageBtn: { padding: '0.4rem 0.75rem', border: '1px solid #e2e8f0', borderRadius: '6px', background: 'white', cursor: 'pointer', color: '#374151', fontSize: '0.9rem', fontWeight: '500', minWidth: '36px' },
+  activePage: { background: '#1e40af', color: 'white', borderColor: '#1e40af', fontWeight: '700' },
   cancelModalBtn: { padding: '0.6rem 1.25rem', background: 'white', border: '1px solid #d1d5db', borderRadius: '8px', cursor: 'pointer', color: '#64748b', fontWeight: '600', fontSize: '1rem' },
   overrideConfirmBtn: { padding: '0.6rem 1.25rem', background: '#7c3aed', color: 'white', border: 'none', borderRadius: '8px', cursor: 'pointer', fontWeight: '700', fontSize: '1rem' },
 };
