@@ -70,9 +70,9 @@ export default function MyCourses() {
 
       {/* Content */}
       <div style={styles.content}>
-        {tab === 'New Content'     && <CourseList items={newContent} tab="new" navigate={navigate} />}
-        {tab === 'Incomplete'      && <CourseList items={incomplete} tab="incomplete" navigate={navigate} />}
-        {tab === 'History'         && <CourseList items={history} tab="history" navigate={navigate} />}
+        {tab === 'New Content'     && <CourseList items={newContent} tab="new" navigate={navigate} userName={user?.name} />}
+        {tab === 'Incomplete'      && <CourseList items={incomplete} tab="incomplete" navigate={navigate} userName={user?.name} />}
+        {tab === 'History'         && <CourseList items={history} tab="history" navigate={navigate} userName={user?.name} />}
         {tab === 'Quiz'            && <QuizList items={quizzes} navigate={navigate} />}
         {tab === 'Ask a Question'  && <AskQuestion completedCourses={history} />}
       </div>
@@ -82,7 +82,110 @@ export default function MyCourses() {
 
 const HISTORY_PER_PAGE = 10;
 
-function CourseList({ items, tab, navigate }) {
+function downloadCertificate(userName, courseTitle, completedAt) {
+  const canvas = document.createElement('canvas');
+  canvas.width = 1200;
+  canvas.height = 850;
+  const ctx = canvas.getContext('2d');
+
+  // Background
+  ctx.fillStyle = '#ffffff';
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+
+  // Outer border
+  ctx.strokeStyle = '#1e40af';
+  ctx.lineWidth = 16;
+  ctx.strokeRect(20, 20, canvas.width - 40, canvas.height - 40);
+
+  // Inner border
+  ctx.strokeStyle = '#16a34a';
+  ctx.lineWidth = 4;
+  ctx.strokeRect(40, 40, canvas.width - 80, canvas.height - 80);
+
+  // Header band
+  const grad = ctx.createLinearGradient(0, 60, canvas.width, 200);
+  grad.addColorStop(0, '#1e40af');
+  grad.addColorStop(1, '#7c3aed');
+  ctx.fillStyle = grad;
+  ctx.fillRect(40, 40, canvas.width - 80, 160);
+
+  // Header text
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 52px Georgia, serif';
+  ctx.textAlign = 'center';
+  ctx.fillText('Certificate of Completion', canvas.width / 2, 148);
+
+  // Subtitle
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '28px Georgia, serif';
+  ctx.fillText('This is to certify that', canvas.width / 2, 270);
+
+  // Name
+  ctx.fillStyle = '#1e40af';
+  ctx.font = 'bold 60px Georgia, serif';
+  ctx.fillText(userName || 'Learner', canvas.width / 2, 360);
+
+  // Underline under name
+  const nameWidth = ctx.measureText(userName || 'Learner').width;
+  ctx.strokeStyle = '#1e40af';
+  ctx.lineWidth = 2;
+  ctx.beginPath();
+  ctx.moveTo(canvas.width / 2 - nameWidth / 2, 375);
+  ctx.lineTo(canvas.width / 2 + nameWidth / 2, 375);
+  ctx.stroke();
+
+  // Has completed
+  ctx.fillStyle = '#1e293b';
+  ctx.font = '28px Georgia, serif';
+  ctx.fillText('has successfully completed the course', canvas.width / 2, 430);
+
+  // Course title
+  ctx.fillStyle = '#16a34a';
+  ctx.font = 'bold 40px Georgia, serif';
+  // Wrap long titles
+  const maxWidth = canvas.width - 160;
+  const words = (courseTitle || 'Healthcare Course').split(' ');
+  let line = '';
+  let y = 510;
+  for (const word of words) {
+    const test = line ? `${line} ${word}` : word;
+    if (ctx.measureText(test).width > maxWidth && line) {
+      ctx.fillText(line, canvas.width / 2, y);
+      line = word;
+      y += 52;
+    } else {
+      line = test;
+    }
+  }
+  ctx.fillText(line, canvas.width / 2, y);
+
+  // Date
+  const dateStr = completedAt ? new Date(completedAt).toLocaleDateString('en-US', { year: 'numeric', month: 'long', day: 'numeric' }) : '';
+  ctx.fillStyle = '#64748b';
+  ctx.font = '24px Georgia, serif';
+  ctx.fillText(`Completed on ${dateStr}`, canvas.width / 2, y + 80);
+
+  // Seal circle
+  ctx.beginPath();
+  ctx.arc(canvas.width / 2, y + 170, 55, 0, Math.PI * 2);
+  ctx.fillStyle = '#16a34a';
+  ctx.fill();
+  ctx.fillStyle = '#ffffff';
+  ctx.font = 'bold 36px Arial';
+  ctx.fillText('✓', canvas.width / 2, y + 183);
+
+  // Footer
+  ctx.fillStyle = '#94a3b8';
+  ctx.font = '18px Arial';
+  ctx.fillText('Healthcare Training Platform', canvas.width / 2, canvas.height - 60);
+
+  const link = document.createElement('a');
+  link.download = `Certificate_${(courseTitle || 'Course').replace(/\s+/g, '_')}.png`;
+  link.href = canvas.toDataURL('image/png');
+  link.click();
+}
+
+function CourseList({ items, tab, navigate, userName }) {
   const [page, setPage] = useState(1);
 
   const emptyMessages = {
@@ -115,7 +218,9 @@ function CourseList({ items, tab, navigate }) {
                 <span style={{ ...styles.typeBadge, background: course.type === 'pdf' ? '#dbeafe' : '#ede9fe', color: course.type === 'pdf' ? '#1d4ed8' : '#6d28d9' }}>
                   {course.type === 'pdf' ? '📄 PDF' : '📦 SCORM'}
                 </span>
-                {tab === 'history' && <span style={styles.completedTag}>✅ Done</span>}
+                {tab === 'history' && (
+                  <span style={styles.completionBadge}>🏅 Completed</span>
+                )}
                 {tab === 'incomplete' && <span style={styles.inProgressTag}>⏳ In Progress</span>}
               </div>
               <h3 style={styles.cardTitle}>{course.title}</h3>
@@ -124,15 +229,25 @@ function CourseList({ items, tab, navigate }) {
                 <p style={styles.openedDate}>Opened {new Date(course.first_opened_at).toLocaleDateString()}</p>
               )}
               {tab === 'history' && course.acknowledged_at && (
-                <p style={styles.doneDate}>Completed {new Date(course.acknowledged_at).toLocaleString()}</p>
+                <p style={styles.doneDate}>Completed on {new Date(course.acknowledged_at).toLocaleString()}</p>
               )}
             </div>
-            <button
-              onClick={() => navigate(`/my-courses/${course.id}`)}
-              style={{ ...styles.actionBtn, background: accentColor, alignSelf: 'center' }}
-            >
-              {tab === 'history' ? '↩ Review Again' : tab === 'incomplete' ? '▶ Continue' : '▶ Start Course'}
-            </button>
+            <div style={styles.cardActions}>
+              {tab === 'history' && (
+                <button
+                  onClick={() => downloadCertificate(userName, course.title, course.acknowledged_at)}
+                  style={styles.certBtn}
+                >
+                  🎓 Download Certificate
+                </button>
+              )}
+              <button
+                onClick={() => navigate(`/my-courses/${course.id}`)}
+                style={{ ...styles.actionBtn, background: accentColor }}
+              >
+                {tab === 'history' ? '↩ Review Again' : tab === 'incomplete' ? '▶ Continue' : '▶ Start Course'}
+              </button>
+            </div>
           </div>
         ))}
       </div>
@@ -332,9 +447,12 @@ const styles = {
   content: {},
   empty: { textAlign: 'center', padding: '3rem', background: 'white', borderRadius: '12px', boxShadow: '0 2px 8px rgba(0,0,0,0.06)' },
   list: { display: 'flex', flexDirection: 'column', gap: '1rem' },
-  card: { background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'stretch', gap: '1.5rem' },
+  card: { background: 'white', borderRadius: '14px', padding: '1.25rem 1.5rem', boxShadow: '0 2px 8px rgba(0,0,0,0.07)', display: 'flex', flexDirection: 'row', justifyContent: 'space-between', alignItems: 'center', gap: '1.5rem' },
   cardLeft: { display: 'flex', flexDirection: 'column', gap: '0.4rem', flex: 1 },
   cardTop: { display: 'flex', alignItems: 'center', gap: '0.75rem' },
+  cardActions: { display: 'flex', flexDirection: 'column', gap: '0.6rem', alignItems: 'stretch', flexShrink: 0 },
+  completionBadge: { display: 'inline-flex', alignItems: 'center', gap: '0.3rem', padding: '0.3rem 0.8rem', background: 'linear-gradient(135deg, #16a34a, #15803d)', color: 'white', borderRadius: '999px', fontSize: '0.85rem', fontWeight: '700', boxShadow: '0 2px 6px rgba(22,163,74,0.35)' },
+  certBtn: { padding: '0.6rem 1.1rem', background: 'linear-gradient(135deg, #1e40af, #7c3aed)', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.88rem', whiteSpace: 'nowrap' },
   pagination: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginTop: '1.25rem', flexWrap: 'wrap', gap: '0.75rem' },
   pageInfo: { color: '#64748b', fontSize: '0.9rem' },
   pageButtons: { display: 'flex', gap: '0.35rem' },
@@ -350,5 +468,5 @@ const styles = {
   openedDate: { color: '#b45309', fontSize: '0.88rem', margin: 0 },
   doneDate: { color: '#16a34a', fontSize: '0.88rem', margin: 0 },
   scoreRow: { display: 'flex', justifyContent: 'space-between', alignItems: 'center', padding: '0.5rem 0.75rem', borderRadius: '8px', marginTop: '0.25rem' },
-  actionBtn: { marginTop: '0.5rem', padding: '0.75rem 1.25rem', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem' },
+  actionBtn: { padding: '0.7rem 1.25rem', color: 'white', border: 'none', borderRadius: '8px', fontWeight: '700', cursor: 'pointer', fontSize: '0.95rem', whiteSpace: 'nowrap' },
 };
